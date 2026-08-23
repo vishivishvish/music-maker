@@ -49,6 +49,21 @@ lives as normal text files in git instead of the Apps Script web editor.
    ```
 4. Open the web app URL clasp prints out.
 
+## Sample tracks
+
+- **`track-001.mp3`** — 110 BPM, 1 bar (16 steps), four-on-the-floor kick with a
+  backbeat snare, syncopated bass and lead lines, and a sparse chime accent:
+
+  | Row | Steps |
+  |---|---|
+  | Kick | 1, 5, 9, 13 |
+  | Snare | 5, 13 |
+  | Hi-hat | 1, 3, 5, 7, 9, 11, 13 |
+  | Open Hat | 15 |
+  | Bass | 1, 4, 9, 11 |
+  | Lead | 3, 7, 11, 15 |
+  | Chime | 1, 9 |
+
 ## Roadmap
 
 - Chaining multiple patterns into a longer song (currently a single loopable pattern).
