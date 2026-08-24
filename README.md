@@ -1,6 +1,6 @@
 # Music Maker
 
-A tiny step-sequencer for making synth melodies, hosted as a free Google Apps Script
+A tiny step-sequencer for creating synth melodies, hosted as a free Google Apps Script
 (GAS) web app. Tap steps across a grid of synthesized drum/synth sounds, hit play, and
 export the loop as a real `.mp3`.
 
