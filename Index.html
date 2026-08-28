@@ -218,39 +218,130 @@
     .row-label { width: 100px; }
     .step { width: 22px; height: 22px; }
   }
+
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab-btn {
+    background: var(--panel);
+    color: var(--text-dim);
+    border: 1px solid var(--grid-line);
+    border-radius: 8px;
+  }
+
+  .tab-btn.active {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .upload-box {
+    background: var(--panel);
+    border: 1px dashed var(--grid-line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  input[type="file"] {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .track-info {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
 </style>
 
 <div class="app">
   <h1>Music Maker</h1>
   <p class="subtitle">Tap steps to build a beat. Mix and match sounds, then export your track as an mp3.</p>
 
-  <div class="transport">
-    <button id="playBtn">▶ Play</button>
-
-    <div class="transport-group">
-      <label for="bpmInput">BPM</label>
-      <input type="number" id="bpmInput" min="40" max="240" value="110" />
-    </div>
-
-    <div class="transport-group">
-      <label for="barsSelect">Bars</label>
-      <select id="barsSelect">
-        <option value="1">1 (16 steps)</option>
-        <option value="2">2 (32 steps)</option>
-        <option value="4">4 (64 steps)</option>
-      </select>
-    </div>
-
-    <button id="clearBtn">Clear</button>
-    <button id="exportBtn">⬇ Export MP3</button>
-
-    <span class="status" id="statusText"></span>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtnSequencer">Sequencer</button>
+    <button class="tab-btn" id="tabBtnLayer">Layer Over Track</button>
   </div>
 
-  <div class="grid-wrap">
-    <div id="gridBody"></div>
-    <div class="legend">
-      Click the mute badge next to a row to silence it. Steps are grouped in 4s (one beat per group).
+  <div class="tab-panel active" id="panelSequencer">
+    <div class="transport">
+      <button id="playBtn">▶ Play</button>
+
+      <div class="transport-group">
+        <label for="bpmInput">BPM</label>
+        <input type="number" id="bpmInput" min="40" max="240" value="110" />
+      </div>
+
+      <div class="transport-group">
+        <label for="barsSelect">Bars</label>
+        <select id="barsSelect">
+          <option value="1">1 (16 steps)</option>
+          <option value="2">2 (32 steps)</option>
+          <option value="4">4 (64 steps)</option>
+        </select>
+      </div>
+
+      <button id="clearBtn">Clear</button>
+      <button id="exportBtn">⬇ Export MP3</button>
+
+      <span class="status" id="statusText"></span>
+    </div>
+
+    <div class="grid-wrap">
+      <div id="gridBody"></div>
+      <div class="legend">
+        Click the mute badge next to a row to silence it. Steps are grouped in 4s (one beat per group).
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panelLayer">
+    <div class="upload-box">
+      <input type="file" id="trackUpload" accept="audio/*" />
+      <span class="track-info" id="trackInfo">No track uploaded yet.</span>
+    </div>
+
+    <div class="transport">
+      <button id="layerPlayBtn" disabled>▶ Play</button>
+
+      <div class="transport-group">
+        <label for="layerBpmInput">BPM</label>
+        <input type="number" id="layerBpmInput" min="40" max="240" value="110" />
+      </div>
+
+      <div class="transport-group">
+        <label for="layerBarsSelect">Loop length</label>
+        <select id="layerBarsSelect">
+          <option value="1">1 bar (16 steps)</option>
+          <option value="2">2 bars (32 steps)</option>
+          <option value="4">4 bars (64 steps)</option>
+        </select>
+      </div>
+
+      <button id="layerClearBtn">Clear</button>
+      <button id="layerExportBtn" disabled>⬇ Export Mix</button>
+
+      <span class="status" id="layerStatusText"></span>
+    </div>
+
+    <div class="grid-wrap">
+      <div id="layerGridBody"></div>
+      <div class="legend">
+        Upload any mp3, build a synth pattern below, then hit Play — your pattern loops
+        continuously underneath the uploaded track for as long as it plays. Export Mix
+        renders the whole uploaded track with your synth layer mixed in on top.
+      </div>
     </div>
   </div>
 </div>
@@ -638,5 +729,320 @@
   });
 
   rebuildGrid();
+
+  // ---- Tab switching --------------------------------------------------------
+  var tabBtnSequencer = document.getElementById("tabBtnSequencer");
+  var tabBtnLayer = document.getElementById("tabBtnLayer");
+  var panelSequencer = document.getElementById("panelSequencer");
+  var panelLayer = document.getElementById("panelLayer");
+
+  tabBtnSequencer.addEventListener("click", function () {
+    tabBtnSequencer.classList.add("active");
+    tabBtnLayer.classList.remove("active");
+    panelSequencer.classList.add("active");
+    panelLayer.classList.remove("active");
+  });
+
+  tabBtnLayer.addEventListener("click", function () {
+    tabBtnLayer.classList.add("active");
+    tabBtnSequencer.classList.remove("active");
+    panelLayer.classList.add("active");
+    panelSequencer.classList.remove("active");
+  });
+
+  // ============================================================================
+  // "Layer Over Track" tab — upload an mp3, loop the same synth sounds on top
+  // ============================================================================
+
+  var layerBars = 1;
+  var layerTotalSteps = layerBars * stepsPerBar;
+  var layerBpm = 110;
+  var layerGrid = {};
+  var layerMuted = {};
+
+  ROWS.forEach(function (row) {
+    layerGrid[row.id] = new Array(layerTotalSteps).fill(false);
+    layerMuted[row.id] = false;
+  });
+
+  var uploadedBuffer = null;
+  var layerIsPlaying = false;
+  var layerBufferSource = null;
+  var layerCurrentStep = 0;
+  var layerNextNoteTime = 0.0;
+  var layerSchedulerTimer = null;
+
+  function layerStepDuration() {
+    return 60.0 / layerBpm / 4;
+  }
+
+  var layerGridBody = document.getElementById("layerGridBody");
+  var layerStepButtons = {};
+
+  function rebuildLayerGrid() {
+    layerGridBody.innerHTML = "";
+    layerStepButtons = {};
+
+    ROWS.forEach(function (row) {
+      if (layerGrid[row.id].length !== layerTotalSteps) {
+        var resized = new Array(layerTotalSteps).fill(false);
+        for (var i = 0; i < Math.min(layerTotalSteps, layerGrid[row.id].length); i++) {
+          resized[i] = layerGrid[row.id][i];
+        }
+        layerGrid[row.id] = resized;
+      }
+
+      var rowEl = document.createElement("div");
+      rowEl.className = "row";
+
+      var labelEl = document.createElement("div");
+      labelEl.className = "row-label";
+
+      var muteBtn = document.createElement("button");
+      muteBtn.className = "mute-btn" + (layerMuted[row.id] ? " muted" : "");
+      muteBtn.textContent = layerMuted[row.id] ? "M" : "•";
+      muteBtn.title = "Mute " + row.name;
+      muteBtn.addEventListener("click", function () {
+        layerMuted[row.id] = !layerMuted[row.id];
+        muteBtn.className = "mute-btn" + (layerMuted[row.id] ? " muted" : "");
+        muteBtn.textContent = layerMuted[row.id] ? "M" : "•";
+      });
+
+      var nameEl = document.createElement("span");
+      nameEl.className = "row-name";
+      nameEl.textContent = row.name;
+      nameEl.style.color = row.color;
+
+      labelEl.appendChild(muteBtn);
+      labelEl.appendChild(nameEl);
+
+      var stepsEl = document.createElement("div");
+      stepsEl.className = "steps";
+
+      var btns = [];
+      for (var g = 0; g < layerTotalSteps / 4; g++) {
+        var groupEl = document.createElement("div");
+        groupEl.className = "beat-group" + (g % 2 === 1 ? " tinted" : "");
+        for (var s = 0; s < 4; s++) {
+          var idx = g * 4 + s;
+          var btn = document.createElement("button");
+          btn.className = "step" + (layerGrid[row.id][idx] ? " on" : "");
+          btn.style.setProperty("--row-color", row.color);
+          (function (rowId, index, button) {
+            button.addEventListener("click", function () {
+              layerGrid[rowId][index] = !layerGrid[rowId][index];
+              button.classList.toggle("on", layerGrid[rowId][index]);
+            });
+          })(row.id, idx, btn);
+          groupEl.appendChild(btn);
+          btns.push(btn);
+        }
+        stepsEl.appendChild(groupEl);
+      }
+
+      rowEl.appendChild(labelEl);
+      var rowControls = document.createElement("div");
+      rowControls.className = "row-controls";
+      rowEl.appendChild(rowControls);
+      rowEl.appendChild(stepsEl);
+      layerGridBody.appendChild(rowEl);
+
+      layerStepButtons[row.id] = btns;
+    });
+  }
+
+  function setLayerPlayheadUI(step) {
+    ROWS.forEach(function (row) {
+      var btns = layerStepButtons[row.id];
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle("playhead", i === step % layerTotalSteps);
+      }
+    });
+  }
+
+  function clearLayerPlayheadUI() {
+    ROWS.forEach(function (row) {
+      layerStepButtons[row.id].forEach(function (b) { b.classList.remove("playhead"); });
+    });
+  }
+
+  function scheduleLayerStep(step, time) {
+    var ctx = getAudioCtx();
+    ROWS.forEach(function (row) {
+      if (layerMuted[row.id]) return;
+      if (layerGrid[row.id][step]) {
+        row.play(ctx, ctx.destination, time);
+      }
+    });
+  }
+
+  function layerScheduler() {
+    var ctx = getAudioCtx();
+    while (layerNextNoteTime < ctx.currentTime + scheduleAheadTime) {
+      var stepIdx = layerCurrentStep % layerTotalSteps;
+      scheduleLayerStep(stepIdx, layerNextNoteTime);
+      var delay = (layerNextNoteTime - ctx.currentTime) * 1000;
+      setTimeout(function () {
+        if (layerIsPlaying) setLayerPlayheadUI(stepIdx);
+      }, Math.max(0, delay));
+
+      layerNextNoteTime += layerStepDuration();
+      layerCurrentStep++;
+    }
+  }
+
+  var trackUpload = document.getElementById("trackUpload");
+  var trackInfo = document.getElementById("trackInfo");
+  var layerPlayBtn = document.getElementById("layerPlayBtn");
+  var layerBpmInput = document.getElementById("layerBpmInput");
+  var layerBarsSelect = document.getElementById("layerBarsSelect");
+  var layerClearBtn = document.getElementById("layerClearBtn");
+  var layerExportBtn = document.getElementById("layerExportBtn");
+  var layerStatusText = document.getElementById("layerStatusText");
+
+  trackUpload.addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    trackInfo.textContent = "Decoding " + file.name + "…";
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      getAudioCtx().decodeAudioData(ev.target.result.slice(0)).then(function (buf) {
+        uploadedBuffer = buf;
+        trackInfo.textContent = file.name + " — " + buf.duration.toFixed(1) + "s";
+        layerPlayBtn.disabled = false;
+        layerExportBtn.disabled = false;
+      }).catch(function (err) {
+        uploadedBuffer = null;
+        trackInfo.textContent = "Couldn't decode this file: " + err.message;
+        layerPlayBtn.disabled = true;
+        layerExportBtn.disabled = true;
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  function startLayerPlayback() {
+    if (!uploadedBuffer) return;
+    var ctx = getAudioCtx();
+    if (ctx.state === "suspended") ctx.resume();
+
+    layerIsPlaying = true;
+    layerCurrentStep = 0;
+    var startAt = ctx.currentTime + 0.05;
+    layerNextNoteTime = startAt;
+
+    layerBufferSource = ctx.createBufferSource();
+    layerBufferSource.buffer = uploadedBuffer;
+    layerBufferSource.connect(ctx.destination);
+    layerBufferSource.onended = function () {
+      if (layerIsPlaying) stopLayerPlayback();
+    };
+    layerBufferSource.start(startAt);
+
+    layerPlayBtn.textContent = "■ Stop";
+    layerPlayBtn.classList.add("playing");
+    layerSchedulerTimer = setInterval(layerScheduler, lookahead);
+  }
+
+  function stopLayerPlayback() {
+    layerIsPlaying = false;
+    if (layerSchedulerTimer) {
+      clearInterval(layerSchedulerTimer);
+      layerSchedulerTimer = null;
+    }
+    if (layerBufferSource) {
+      layerBufferSource.onended = null;
+      try { layerBufferSource.stop(); } catch (e) { /* already stopped */ }
+      layerBufferSource = null;
+    }
+    layerPlayBtn.textContent = "▶ Play";
+    layerPlayBtn.classList.remove("playing");
+    clearLayerPlayheadUI();
+  }
+
+  layerPlayBtn.addEventListener("click", function () {
+    if (layerIsPlaying) stopLayerPlayback(); else startLayerPlayback();
+  });
+
+  layerBpmInput.addEventListener("change", function () {
+    var v = parseInt(layerBpmInput.value, 10);
+    if (isNaN(v)) v = 110;
+    v = Math.max(40, Math.min(240, v));
+    layerBpmInput.value = v;
+    layerBpm = v;
+  });
+
+  layerBarsSelect.addEventListener("change", function () {
+    var wasPlaying = layerIsPlaying;
+    if (wasPlaying) stopLayerPlayback();
+    layerBars = parseInt(layerBarsSelect.value, 10);
+    layerTotalSteps = layerBars * stepsPerBar;
+    rebuildLayerGrid();
+  });
+
+  layerClearBtn.addEventListener("click", function () {
+    ROWS.forEach(function (row) { layerGrid[row.id].fill(false); });
+    rebuildLayerGrid();
+  });
+
+  function renderLayerOffline() {
+    var duration = uploadedBuffer.duration + 0.3;
+    var OfflineCtor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    var offlineCtx = new OfflineCtor(2, Math.ceil(44100 * duration), 44100);
+
+    var trackSrc = offlineCtx.createBufferSource();
+    trackSrc.buffer = uploadedBuffer;
+    trackSrc.connect(offlineCtx.destination);
+    trackSrc.start(0);
+
+    var stepDur = layerStepDuration();
+    var t = 0;
+    var stepIdx = 0;
+    while (t < uploadedBuffer.duration) {
+      var idx = stepIdx % layerTotalSteps;
+      ROWS.forEach(function (row) {
+        if (!layerMuted[row.id] && layerGrid[row.id][idx]) {
+          row.play(offlineCtx, offlineCtx.destination, t);
+        }
+      });
+      t += stepDur;
+      stepIdx++;
+    }
+
+    return offlineCtx.startRendering();
+  }
+
+  layerExportBtn.addEventListener("click", function () {
+    if (!uploadedBuffer) return;
+    if (typeof lamejs === "undefined") {
+      layerStatusText.textContent = "MP3 encoder failed to load — check your connection.";
+      return;
+    }
+    layerExportBtn.disabled = true;
+    layerExportBtn.classList.add("working");
+    layerStatusText.textContent = "Rendering mix…";
+
+    renderLayerOffline().then(function (audioBuffer) {
+      layerStatusText.textContent = "Encoding MP3…";
+      var blob = encodeMp3(audioBuffer);
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "music-maker-layered-mix.mp3";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      layerStatusText.textContent = "Downloaded!";
+    }).catch(function (err) {
+      console.error(err);
+      layerStatusText.textContent = "Export failed: " + err.message;
+    }).finally(function () {
+      layerExportBtn.disabled = false;
+      layerExportBtn.classList.remove("working");
+    });
+  });
+
+  rebuildLayerGrid();
 })();
 </script>
