@@ -68,3 +68,5 @@ lives as normal text files in git instead of the Apps Script web editor.
 
 - Chaining multiple patterns into a longer song (currently a single loopable pattern).
 - Saving/reloading patterns (currently in memory only for the session).
+
+<!-- readme-grammar-pass: 2026-09-28 -->
