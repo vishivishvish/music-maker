@@ -67,4 +67,4 @@ lives as normal text files in git instead of the Apps Script web editor.
 ## Roadmap
 
 - Chaining multiple patterns into a longer song (currently a single loopable pattern).
-- Saving/reloading patterns (currently in-memory only for the session).
+- Saving/reloading patterns (currently in memory only for the session).
