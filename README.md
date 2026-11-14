@@ -25,7 +25,7 @@ server, to test the grid, playback, and export.
 
 ## Deploying to Apps Script
 
-This project is managed with [`clasp`](https://github.com/google/clasp) so the code
+This project is managed with [`clasp`](https://github.com/google/clasp) so that the code
 lives as normal text files in git instead of the Apps Script web editor.
 
 1. Install clasp and log in with your Google account:
